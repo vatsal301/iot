@@ -1,0 +1,285 @@
+// Gas Sensor with LED
+
+
+// Define pin numbers
+const int gasSensorPin = A0;   // Gas sensor connected to A0
+const int ledPin = 13;         // LED connected to pin 13
+
+// Set threshold for smoke level
+const int threshold = 350;
+
+void setup() {
+  // Initialize the LED pin as an output:
+  pinMode(ledPin, OUTPUT);
+  // Start serial communication for debugging:
+  Serial.begin(9600);
+}
+
+void loop() {
+  // Read the value from the gas sensor (analog value)
+  int smokeLevel = analogRead(gasSensorPin);
+
+  // Print the smoke value for debugging
+  Serial.print("Smoke Level: ");
+  Serial.println(smokeLevel);
+
+  // Check if the smoke level exceeds the threshold
+  if (smokeLevel > threshold) {
+    // If the value exceeds threshold, turn the LED on
+    digitalWrite(ledPin, HIGH);
+  } else {
+    // If the value is below the threshold, turn the LED off
+    digitalWrite(ledPin, LOW);
+  }
+
+  // Add a small delay for stability
+  delay(500);
+}
+
+
+
+
+
+
+
+
+
+
+
+// Altrasonic with Thingspeak with NODEMCU
+
+#include <ESP8266WiFi.h>
+#include <ThingSpeak.h>
+
+// Define the pin numbers for the ultrasonic sensor
+const int trigPin = D6;  // Trigger pin connected to GPIO 12 (D6)
+const int echoPin = D5;  // Echo pin connected to GPIO 14 (D5)
+
+// Define the pin for the LED
+const int ledPin = D2;   // LED connected to GPIO 4 (D2)
+
+// WiFi credentials
+const char *ssid = "YOUR_WIFI_SSID";      // Replace with your WiFi SSID
+const char *password = "YOUR_WIFI_PASSWORD"; // Replace with your WiFi Password
+
+// ThingSpeak channel details
+unsigned long channelID = YOUR_CHANNEL_ID; // Replace with your ThingSpeak Channel ID
+const char *writeAPIKey = "YOUR_API_KEY";   // Replace with your ThingSpeak Write API Key
+
+// Set up WiFi and ThingSpeak
+WiFiClient client;
+
+void setup() {
+  // Start serial communication
+  Serial.begin(115200);
+
+  // Initialize the ultrasonic sensor pins
+  pinMode(trigPin, OUTPUT);
+  pinMode(echoPin, INPUT);
+  
+  // Initialize the LED pin as an output
+  pinMode(ledPin, OUTPUT);
+  
+  // Connect to Wi-Fi
+  Serial.println("Connecting to WiFi...");
+  WiFi.begin(ssid, password);
+  
+  // Wait until the Wi-Fi is connected
+  while (WiFi.status() != WL_CONNECTED) {
+    delay(500);
+    Serial.print(".");
+  }
+  Serial.println("Connected to WiFi");
+
+  // Initialize ThingSpeak
+  ThingSpeak.begin(client);
+}
+
+void loop() {
+  // Get distance from the ultrasonic sensor
+  long duration, distance;
+  
+  // Send a pulse to trigger the sensor
+  digitalWrite(trigPin, LOW);
+  delayMicroseconds(2);
+  digitalWrite(trigPin, HIGH);
+  delayMicroseconds(10);
+  digitalWrite(trigPin, LOW);
+  
+  // Measure the time it takes for the pulse to return
+  duration = pulseIn(echoPin, HIGH);
+  
+  // Calculate the distance based on the duration
+  distance = (duration * 0.034 / 2); // Sound velocity is 0.034 cm/us
+  
+  // Convert the distance to inches (optional)
+  float distanceInches = distance * 0.393701;
+  
+  // Print the distance value to the Serial Monitor
+  Serial.print("Distance: ");
+  Serial.print(distance);
+  Serial.print(" cm | ");
+  Serial.print("Distance in inches: ");
+  Serial.println(distanceInches);
+  
+  // Control the LED based on distance threshold
+  if (distance <= 20) {
+    digitalWrite(ledPin, HIGH);  // Turn LED on if distance is less than or equal to 20 cm
+  } else {
+    digitalWrite(ledPin, LOW);   // Turn LED off if distance is greater than 20 cm
+  }
+
+  // Upload the distance to ThingSpeak
+  ThingSpeak.setField(1, distance); // Set the distance value in Field 1
+  ThingSpeak.writeFields(channelID, writeAPIKey); // Upload data to ThingSpeak
+  
+  // Wait before taking another reading
+  delay(2000);  // 2 seconds delay
+}
+
+
+
+
+
+
+
+
+
+
+
+
+// Temperature sensor with NODE MCU THingspeak cloud
+
+#include <ESP8266WiFi.h>
+#include <ThingSpeak.h>
+#include <OneWire.h>
+#include <DallasTemperature.h>
+
+// Pin configuration
+#define ONE_WIRE_BUS D2  // Data pin connected to GPIO 4 (D2) of NodeMCU
+#define LED_PIN D1       // LED connected to GPIO 5 (D1) of NodeMCU
+
+// Wi-Fi credentials
+const char *ssid = "YOUR_WIFI_SSID";      // Replace with your WiFi SSID
+const char *password = "YOUR_WIFI_PASSWORD"; // Replace with your WiFi Password
+
+// ThingSpeak channel details
+unsigned long channelID = YOUR_CHANNEL_ID; // Replace with your ThingSpeak Channel ID
+const char *writeAPIKey = "YOUR_API_KEY";   // Replace with your ThingSpeak Write API Key
+
+// Set up the OneWire bus and DallasTemperature library
+OneWire oneWire(ONE_WIRE_BUS);
+DallasTemperature sensors(&oneWire);
+
+// Threshold temperature for LED activation
+float thresholdTemperature = 30.0;  // Temperature threshold in Celsius (e.g., 30°C)
+
+WiFiClient client;
+
+void setup() {
+  // Start serial communication
+  Serial.begin(115200);
+  
+  // Initialize the LED pin as output
+  pinMode(LED_PIN, OUTPUT);
+  
+  // Initialize the DallasTemperature sensor
+  sensors.begin();
+  
+  // Connect to WiFi
+  Serial.println("Connecting to WiFi...");
+  WiFi.begin(ssid, password);
+  
+  // Wait until the Wi-Fi is connected
+  while (WiFi.status() != WL_CONNECTED) {
+    delay(500);
+    Serial.print(".");
+  }
+  Serial.println("Connected to WiFi");
+
+  // Initialize ThingSpeak
+  ThingSpeak.begin(client);
+}
+
+void loop() {
+  // Request temperature measurement from the DS18B20 sensor
+  sensors.requestTemperatures();
+  
+  // Get the temperature from the DS18B20 sensor (in Celsius)
+  float temperature = sensors.getTempCByIndex(0);
+  
+  // Print the temperature to the Serial Monitor
+  Serial.print("Temperature: ");
+  Serial.print(temperature);
+  Serial.println(" °C");
+  
+  // Control the LED based on the temperature threshold
+  if (temperature > thresholdTemperature) {
+    digitalWrite(LED_PIN, HIGH);  // Turn LED on if temperature exceeds threshold
+  } else {
+    digitalWrite(LED_PIN, LOW);   // Turn LED off if temperature is below threshold
+  }
+  
+  // Upload the temperature value to ThingSpeak
+  ThingSpeak.setField(1, temperature);  // Set the temperature value in Field 1
+  ThingSpeak.writeFields(channelID, writeAPIKey);  // Write to ThingSpeak
+
+  // Wait before taking another reading (adjust as needed)
+  delay(2000);  // Delay of 2 seconds
+}
+
+
+
+
+
+
+
+
+//Pluse sensor LED 
+
+// Define pin numbers
+const int pulsePin = A0;  // Pulse sensor connected to analog pin A0
+const int ledPin = 13;    // LED connected to digital pin 13
+
+// Variables to store pulse sensor readings and BPM calculations
+int sensorValue = 0;      // Raw value from pulse sensor
+int threshold = 515;      // Set the threshold for BPM (adjust as needed)
+long lastBeatTime = 0;    // Time of the last heartbeat detected
+long interval;            // Interval between beats (in milliseconds)
+float bpm;                // Beats per minute
+
+void setup() {
+  // Initialize the LED pin as an output
+  pinMode(ledPin, OUTPUT);
+  
+  // Start serial communication for debugging
+  Serial.begin(9600);
+}
+
+void loop() {
+  // Read the value from the pulse sensor (analog input)
+  sensorValue = analogRead(pulsePin);
+
+  // Check if a pulse is detected (when sensor value exceeds threshold)
+  if (sensorValue > threshold) {
+    // If enough time has passed since the last beat, calculate BPM
+    if (millis() - lastBeatTime > 300) { // A beat is detected
+      // Calculate BPM (60,000 ms / time interval between beats)
+      bpm = 60000.0 / (millis() - lastBeatTime);
+      lastBeatTime = millis();  // Store the current time as the last beat time
+
+      // Print BPM to the Serial Monitor
+      Serial.print("BPM: ");
+      Serial.println(bpm);
+
+      // Turn on LED if BPM is above the threshold
+      if (bpm > 520) {  // Set threshold for BPM (you can adjust this value)
+        digitalWrite(ledPin, HIGH); // Turn on LED
+      } else {
+        digitalWrite(ledPin, LOW);  // Turn off LED
+      }
+    }
+  }
+  delay(10); // Delay to prevent spamming sensor values too quickly
+}
+
